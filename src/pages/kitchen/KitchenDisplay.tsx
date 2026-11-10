@@ -66,6 +66,7 @@ export default function KitchenDisplay() {
   const [tableNumbers, setTableNumbers] = useState<TableMap>({})
   const [soundOn, setSoundOn] = useState(true)
   const [connected, setConnected] = useState(true)
+  const [lastSyncAt, setLastSyncAt] = useState(() => new Date())
   const [confirmCancel, setConfirmCancel] = useState<Order | null>(null)
   const [cancelling, setCancelling] = useState(false)
   const [progressing, setProgressing] = useState<Record<string, boolean>>({})
@@ -111,6 +112,7 @@ export default function KitchenDisplay() {
 
   // ── New order chime ───────────────────────────────────────────
   useEffect(() => {
+    setLastSyncAt(new Date())
     const current = orders.filter(o => o.status === 'new').length
     if (current > prevNewCount.current && soundOn) playChime()
     prevNewCount.current = current
@@ -166,7 +168,10 @@ export default function KitchenDisplay() {
   }
 
   // #8: track connection drops
-  useTableRealtime('orders', 'venue_id', staff?.venue_id ?? undefined, () => setConnected(true))
+  useTableRealtime('orders', 'venue_id', staff?.venue_id ?? undefined, () => {
+    setConnected(true)
+    setLastSyncAt(new Date())
+  })
 
   // ── Progress handler ──────────────────────────────────────────
   const handleProgress = useCallback(async (order: Order) => {
@@ -226,7 +231,14 @@ export default function KitchenDisplay() {
   const columnOrders = (status: OrderStatus) =>
     visibleOrders
       .filter(o => o.status === status)
-      .sort((a, b) => new Date(a.placed_at).getTime() - new Date(b.placed_at).getTime())
+      .sort((a, b) => {
+        const aElapsed = Date.now() - new Date(a.placed_at).getTime()
+        const bElapsed = Date.now() - new Date(b.placed_at).getTime()
+        const aOverdue = status !== 'ready' && aElapsed >= 12 * 60 * 1000
+        const bOverdue = status !== 'ready' && bElapsed >= 12 * 60 * 1000
+        if (aOverdue !== bOverdue) return aOverdue ? -1 : 1
+        return aElapsed - bElapsed
+      })
 
   // #9: count active orders per station
   const orderCountByStation = (stationId: string) =>
@@ -351,6 +363,9 @@ export default function KitchenDisplay() {
             className={cn('p-2 rounded-lg', connected ? 'text-emerald-400' : 'text-red-400')}>
             {connected ? <Wifi size={16} /> : <WifiOff size={16} />}
           </div>
+          <span className="hidden lg:inline text-[10px] text-gray-500">
+            Synced {formatTime(lastSyncAt.toISOString())}
+          </span>
           <button onClick={signOut} className="p-2 rounded-lg text-gray-500 hover:bg-gray-800">
             <LogOut size={16} />
           </button>
@@ -603,7 +618,12 @@ function OrderCard({
     : undefined
 
   // #5: per-line item done tracking (station-filtered view only)
-  const [lineDone, setLineDone] = useState<Set<string>>(new Set())
+  const [lineDone, setLineDone] = useState<Set<string>>(
+    () => new Set(visibleItems.filter(item => item.line_status === 'ready').map(item => item.id))
+  )
+  useEffect(() => {
+    setLineDone(new Set(visibleItems.filter(item => item.line_status === 'ready').map(item => item.id)))
+  }, [order.id, activeStationId, order.items])
   const allLinesDone = visibleItems.length > 0 && visibleItems.every(i => lineDone.has(i.id))
 
   const handleLineToggle = async (item: OrderItem) => {
@@ -647,12 +667,12 @@ function OrderCard({
 
       {/* Card header */}
       <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-white text-sm font-mono tracking-wide">
-            {order.order_number}
-          </span>
-          <span className="text-xs text-gray-400 bg-gray-800 rounded px-1.5 py-0.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-black text-white text-base font-mono tracking-wide shrink-0">
             T{tableNumber ?? '?'}
+          </span>
+          <span className="text-xs text-gray-400 bg-gray-800 rounded px-1.5 py-0.5 font-mono truncate">
+            Ticket {order.order_number}
           </span>
           {isWaiterOrder && (
             <span className="inline-flex items-center gap-0.5 text-[10px] bg-purple-900/60 text-purple-300 border border-purple-700/50 rounded px-1.5 py-0.5">
@@ -661,7 +681,7 @@ function OrderCard({
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          {/* #4: MM:SS timer */}
+          {/* Explicitly label the duration so it is not confused with clock time. */}
           <span className={cn(
             'flex items-center gap-0.5 text-xs font-mono font-bold rounded px-1.5 py-0.5',
             isUrgent
@@ -669,7 +689,8 @@ function OrderCard({
               : 'text-gray-500 bg-gray-800'
           )}>
             <Clock size={10} />
-            {elapsedMins}:{String(elapsedRemSec).padStart(2, '0')}
+            {isUrgent && <span className="text-[9px] uppercase mr-0.5">Overdue</span>}
+            <span>Elapsed {elapsedMins}:{String(elapsedRemSec).padStart(2, '0')}</span>
           </span>
           {/* #4: countdown to urgent — only show when not yet urgent and < 3 min away */}
           {!isUrgent && urgencySecondsLeft > 0 && urgencySecondsLeft <= 180 && (
