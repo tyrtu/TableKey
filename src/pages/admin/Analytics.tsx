@@ -26,6 +26,8 @@ export default function Analytics({ venueId }: Props) {
   const [range, setRange] = useState<Range>('7d')
   const [tab, setTab] = useState('overview')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
   const [data, setData] = useState<{
     orders: { placed_at: string; subtotal: number; status: string; table_id: string }[]
     requests: { requested_at: string; status: string; handled_at: string | null }[]
@@ -38,6 +40,7 @@ export default function Analytics({ venueId }: Props) {
 
   useEffect(() => {
     setLoading(true)
+    setError(null)
     const now = new Date()
     const periodStart = startOfDay(subDays(now, days)).toISOString()
     // previous period: same window length shifted back
@@ -47,12 +50,16 @@ export default function Analytics({ venueId }: Props) {
     Promise.all([
       getAnalytics(venueId, periodStart),
       getAnalytics(venueId, prevStart, prevEnd),
-    ]).then(([curr, prev]) => {
-      setData(curr as typeof data)
-      setPrevData(prev as typeof data)
-      setLoading(false)
-    })
-  }, [venueId, days])
+    ])
+      .then(([curr, prev]) => {
+        setData(curr as typeof data)
+        setPrevData(prev as typeof data)
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Unable to load analytics.')
+      })
+      .finally(() => setLoading(false))
+  }, [venueId, days, retryKey])
 
   const stats = useMemo(() => {
     if (!data) return null
@@ -148,6 +155,18 @@ export default function Analytics({ venueId }: Props) {
   ]
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>
+  if (error) return (
+    <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-6 text-center">
+      <p className="text-sm font-medium text-red-700">{error}</p>
+      <button
+        type="button"
+        onClick={() => setRetryKey(key => key + 1)}
+        className="mt-3 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+      >
+        Try again
+      </button>
+    </div>
+  )
   if (!stats) return null
 
   const peakLabel = stats.peakHour === 0 ? '12am'
