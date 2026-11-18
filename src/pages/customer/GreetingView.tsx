@@ -194,7 +194,7 @@ export function GreetingView({ table, venue, onContinue }: Props) {
           style={{
             position: 'relative',
             width: '100%',
-            height: 300,
+            height: 280,
             background: 'linear-gradient(135deg, #F0651A, #DB4F0A)',
             flexShrink: 0,
           }}
@@ -245,7 +245,7 @@ export function GreetingView({ table, venue, onContinue }: Props) {
           {/* Logo badge */}
           <div style={{
             position: 'absolute',
-            top: 56,
+            top: 36,
             left: '50%',
             transform: 'translateX(-50%)',
             width: 200,
@@ -270,7 +270,7 @@ export function GreetingView({ table, venue, onContinue }: Props) {
           {/* Table chip */}
           <div style={{
             position: 'absolute',
-            top: 56 + 72 + 24,
+            top: 56 + 62 + 12,
             left: '50%',
             transform: 'translateX(-50%)',
             height: 28,
@@ -385,7 +385,7 @@ export function GreetingView({ table, venue, onContinue }: Props) {
               justifyContent: 'space-between',
               paddingLeft: 20,
               paddingRight: 20,
-              marginBottom: 12,
+              marginBottom: 2,
             }}>
               <span style={{ fontSize: 16, fontWeight: 700, color: '#1C1917' }}>Today's specials</span>
               <button
@@ -557,7 +557,7 @@ export function GreetingView({ table, venue, onContinue }: Props) {
           Browse menu
           <ArrowRight size={20} />
         </button>
-        <div style={{ textAlign: 'center', marginTop: 10 }}>
+        <div style={{ textAlign: 'center', marginTop: 4 }}>
           <button
             onClick={onContinue}
             style={{
