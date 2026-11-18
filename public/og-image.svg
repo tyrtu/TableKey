@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#171614"/>
+
+  <!-- Decorative circles top-right -->
+  <circle cx="1100" cy="80" r="320" fill="none" stroke="white" stroke-width="1" opacity="0.06"/>
+  <circle cx="1100" cy="80" r="250" fill="none" stroke="white" stroke-width="1" opacity="0.06"/>
+  <circle cx="1100" cy="80" r="180" fill="none" stroke="white" stroke-width="1" opacity="0.06"/>
+  <circle cx="1100" cy="80" r="110" fill="none" stroke="white" stroke-width="1" opacity="0.06"/>
+
+  <!-- Decorative circles bottom-left -->
+  <circle cx="100" cy="550" r="200" fill="none" stroke="white" stroke-width="1" opacity="0.04"/>
+  <circle cx="100" cy="550" r="140" fill="none" stroke="white" stroke-width="1" opacity="0.04"/>
+
+  <!-- Logo card -->
+  <rect x="80" y="80" width="260" height="110" rx="20" fill="white"/>
+
+  <!-- TableKey text in logo card -->
+  <text x="210" y="128" font-family="Georgia, serif" font-size="36" font-weight="700"
+    fill="#171614" text-anchor="middle" letter-spacing="-1">TableKey</text>
+  <!-- Tagline under logo text -->
+  <text x="210" y="162" font-family="Arial, sans-serif" font-size="14"
+    fill="#6b7280" text-anchor="middle" letter-spacing="1">RESTAURANT ORDERING</text>
+
+  <!-- Main headline -->
+  <text x="80" y="295" font-family="Arial, sans-serif" font-size="72" font-weight="800"
+    fill="white" letter-spacing="-2">Scan. Order.</text>
+  <text x="80" y="385" font-family="Arial, sans-serif" font-size="72" font-weight="800"
+    fill="#e05c27" letter-spacing="-2">Enjoy.</text>
+
+  <!-- Sub text -->
+  <text x="80" y="450" font-family="Arial, sans-serif" font-size="26"
+    fill="rgba(255,255,255,0.55)">QR-code ordering for restaurants.</text>
+  <text x="80" y="488" font-family="Arial, sans-serif" font-size="26"
+    fill="rgba(255,255,255,0.55)">No app. No account. Just scan.</text>
+
+  <!-- Right side — feature pills -->
+  <rect x="720" y="220" width="240" height="52" rx="26" fill="rgba(224,92,39,0.15)" stroke="#e05c27" stroke-width="1.5" opacity="0.9"/>
+  <text x="840" y="252" font-family="Arial, sans-serif" font-size="20" font-weight="600"
+    fill="#e05c27" text-anchor="middle">Customer Ordering</text>
+
+  <rect x="720" y="292" width="240" height="52" rx="26" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+  <text x="840" y="324" font-family="Arial, sans-serif" font-size="20" font-weight="600"
+    fill="rgba(255,255,255,0.75)" text-anchor="middle">Kitchen Display</text>
+
+  <rect x="720" y="364" width="240" height="52" rx="26" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+  <text x="840" y="396" font-family="Arial, sans-serif" font-size="20" font-weight="600"
+    fill="rgba(255,255,255,0.75)" text-anchor="middle">Waiter Panel</text>
+
+  <rect x="720" y="436" width="240" height="52" rx="26" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+  <text x="840" y="468" font-family="Arial, sans-serif" font-size="20" font-weight="600"
+    fill="rgba(255,255,255,0.75)" text-anchor="middle">Admin Analytics</text>
+
+  <!-- Bottom domain -->
+  <text x="80" y="580" font-family="Arial, sans-serif" font-size="20"
+    fill="rgba(255,255,255,0.3)" letter-spacing="1">table-key.vercel.app</text>
+</svg>

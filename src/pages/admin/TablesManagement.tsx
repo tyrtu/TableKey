@@ -14,7 +14,7 @@ import type { RestaurantTable } from '../../types/database'
 
 interface Props { venueId: string }
 
-const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin
+const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin
 
 export default function TablesManagement({ venueId }: Props) {
   const [tables, setTables] = useState<RestaurantTable[]>([])
