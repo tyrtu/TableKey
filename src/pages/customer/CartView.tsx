@@ -112,8 +112,8 @@ export function CartView({
           <div className="flex-1 min-w-0">
             <VenueLogo
               venue={venue}
-              wrapClass="block h-7 w-[5.5rem] overflow-hidden"
-              imgClass="h-[3.2rem] w-auto max-w-none -translate-x-1 -translate-y-0.5 object-contain"
+              wrapClass="block h-9 w-[6.5rem] overflow-hidden"
+              imgClass="h-9 w-auto max-w-none object-contain"
               textClass="text-base font-bold text-gray-900"
             />
             <p className="text-xs text-gray-500">Table {table.table_number}</p>

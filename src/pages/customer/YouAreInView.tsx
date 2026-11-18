@@ -58,8 +58,8 @@ export function YouAreInView({ table, venue, session, onContinue }: Props) {
         <div className="flex justify-center mb-4">
           <VenueLogo
             venue={venue}
-            wrapClass="block h-10 w-[8rem] overflow-hidden"
-            imgClass="h-[4.2rem] w-auto max-w-none -translate-x-1.5 -translate-y-0.5 object-contain"
+            wrapClass="block h-12 w-[9rem] overflow-hidden"
+            imgClass="h-12 w-auto max-w-none object-contain"
             textClass="text-xl font-bold text-gray-900"
           />
         </div>

@@ -124,8 +124,8 @@ export function OrderTrackingView({ table, venue, session, onBack, onCheckout }:
             <div className="flex items-center gap-2">
               <VenueLogo
                 venue={venue}
-                wrapClass="block h-8 w-[6rem] overflow-hidden"
-                imgClass="h-[3.5rem] w-auto max-w-none -translate-x-1 -translate-y-1 object-contain"
+                wrapClass="block h-9 w-[6.5rem] overflow-hidden"
+                imgClass="h-9 w-auto max-w-none object-contain"
                 textClass="text-sm font-bold text-gray-900"
               />
             </div>
