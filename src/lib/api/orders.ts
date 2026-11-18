@@ -38,8 +38,11 @@ export async function placeOrder(
 
   const { data: order, error } = await supabase.from('orders').insert({
     venue_id: venueId, table_id: tableId, session_id: sessionId,
-    device_token: deviceToken, order_number: orderNum, status: 'new',
+    device_token: deviceToken, status: 'new',
     notes, subtotal, idempotency_key: idempotencyKey,
+    // order_number omitted — DB generates it via next_order_number() default
+    // or the sequence fallback if the RPC is unavailable
+    ...(orderNum ? { order_number: orderNum } : {}),
   }).select().single()
 
   // If duplicate key — order was already placed (double-tap / retry), fetch and return it
