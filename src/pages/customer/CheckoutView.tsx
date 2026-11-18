@@ -312,7 +312,7 @@ export function CheckoutView({ table, venue, session, onBack, onDone }: Props) {
 
       {/* ── STEP 3: PAYMENT METHOD ───────────────────────────── */}
       {step === 'method' && (
-        <div style={{ flex: 1, padding: '16px 16px 20px' }}>
+        <div style={{ flex: 1, padding: '16px 16px 120px' }}>
           {/* Total hero */}
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <p style={{ margin: 0, fontSize: 13, color: C.muted }}>Total to pay</p>
@@ -321,69 +321,68 @@ export function CheckoutView({ table, venue, session, onBack, onDone }: Props) {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* Card */}
-            {venue.allow_card && (
-              <button onClick={() => handlePay('card')} disabled={paying}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  background: C.white, borderRadius: 18, border: `1.5px solid ${C.border}`,
-                  padding: '14px 16px', cursor: 'pointer', textAlign: 'left',
-                  boxShadow: '0 2px 0 rgba(234,223,211,0.5)',
-                }}>
-                <div style={{ width: 44, height: 44, borderRadius: 14, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <CreditCard size={22} color="#4F46E5" />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: C.ink }}>Card</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 12, color: C.muted }}>Visa, Mastercard, Amex</p>
-                </div>
-                <div style={{ width: 20, height: 20, borderRadius: '50%', border: `1.5px solid ${C.border}`, flexShrink: 0 }} />
-              </button>
-            )}
+            {/* Card — always shown */}
+            <MethodCard
+              selected={false}
+              iconBg="#EEF2FF"
+              icon={<CreditCard size={22} color="#4F46E5" />}
+              label="Card"
+              sublabel="Visa, Mastercard, Amex"
+              badge={<span style={{ fontSize: 11, fontWeight: 700, color: '#4F46E5', background: '#EEF2FF', borderRadius: 6, padding: '2px 7px' }}>CARD</span>}
+              onClick={() => venue.allow_card ? handlePay('card') : toast('Card payments not enabled for this venue.')}
+              expanded={false}
+            />
+
+            {/* Apple Pay / Google Pay — UI only */}
+            <MethodCard
+              selected={false}
+              iconBg="#F5F5F5"
+              icon={
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                  <circle cx="11" cy="11" r="11" fill="#1C1917"/>
+                  <text x="11" y="15" textAnchor="middle" fontSize="9" fontWeight="800" fill="white">Pay</text>
+                </svg>
+              }
+              label="Apple Pay / Google Pay"
+              sublabel="Approve on your phone"
+              badge={<span style={{ fontSize: 11, fontWeight: 700, color: '#78716C', background: '#F5F5F5', borderRadius: 6, padding: '2px 7px' }}>PAY</span>}
+              onClick={() => toast('Digital wallet payments coming soon.')}
+              expanded={false}
+            />
 
             {/* M-Pesa */}
-            {venue.mpesa_shortcode && (
-              <div style={{ background: C.white, borderRadius: 18, border: `1.5px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 2px 0 rgba(234,223,211,0.5)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px' }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 14, background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Smartphone size={22} color="#16A34A" />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: C.ink }}>M-Pesa</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 12, color: C.muted }}>Approve on your phone</p>
-                  </div>
-                  <div style={{ width: 20, height: 20, borderRadius: '50%', border: `1.5px solid ${C.border}`, flexShrink: 0 }} />
-                </div>
+            <MethodCard
+              selected={false}
+              iconBg="#F0FDF4"
+              icon={<Smartphone size={22} color="#16A34A" />}
+              label="M-Pesa"
+              sublabel="Approve on your phone"
+              badge={<span style={{ fontSize: 10, fontWeight: 800, color: '#fff', background: '#16A34A', borderRadius: 6, padding: '2px 7px', letterSpacing: '0.5px' }}>M-P</span>}
+              onClick={() => {}}
+              expanded={!!venue.mpesa_shortcode}
+              expandedContent={venue.mpesa_shortcode ? (
                 <div style={{ padding: '0 16px 14px' }}>
                   <Input placeholder="07XX XXX XXX or 254XXX..." type="tel" value={mpesaPhone} onChange={e => setMpesaPhone(e.target.value)} className="mb-2" />
                   <OrangeButton onClick={() => handlePay('mpesa')} loading={paying} fullWidth>Pay with M-Pesa</OrangeButton>
                 </div>
-              </div>
-            )}
+              ) : null}
+            />
 
             {/* Cash */}
-            {venue.allow_cash && (
-              <button
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  background: C.white, borderRadius: 18, border: `1.5px solid ${C.border}`,
-                  padding: '14px 16px', cursor: 'default', textAlign: 'left',
-                  boxShadow: '0 2px 0 rgba(234,223,211,0.5)',
-                }}>
-                <div style={{ width: 44, height: 44, borderRadius: 14, background: '#FFFBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Banknote size={22} color="#D97706" />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: C.ink }}>Cash or card machine</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 12, color: C.muted }}>A waiter comes to your table</p>
-                </div>
-                <div style={{ width: 20, height: 20, borderRadius: '50%', border: `1.5px solid ${C.border}`, flexShrink: 0 }} />
-              </button>
-            )}
+            <MethodCard
+              selected={false}
+              iconBg="#FFFBEB"
+              icon={<Banknote size={22} color="#D97706" />}
+              label="Cash or card machine"
+              sublabel="A waiter comes to your table"
+              badge={<span style={{ fontSize: 10, fontWeight: 800, color: '#D97706', background: '#FFFBEB', borderRadius: 6, padding: '2px 7px', border: '1px solid #FDE68A' }}>CASH</span>}
+              onClick={() => {}}
+              expanded={false}
+            />
           </div>
 
-          <p style={{ textAlign: 'center', fontSize: 11.5, color: C.muted, marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1a5 5 0 1 0 0 10A5 5 0 0 0 6 1zm0 7.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm.75-3a.75.75 0 0 1-1.5 0V4a.75.75 0 0 1 1.5 0v1.5z" fill="#A8A29E"/></svg>
+          <p style={{ textAlign: 'center', fontSize: 11.5, color: C.muted, marginTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#A8A29E" strokeWidth="1.2"/><line x1="6" y1="4" x2="6" y2="6.5" stroke="#A8A29E" strokeWidth="1.2" strokeLinecap="round"/><circle cx="6" cy="8.5" r="0.6" fill="#A8A29E"/></svg>
             Payments are encrypted · Powered by TableKey
           </p>
         </div>
@@ -486,12 +485,10 @@ export function CheckoutView({ table, venue, session, onBack, onDone }: Props) {
           padding: `16px 16px calc(72px + max(16px, env(safe-area-inset-bottom)))`,
           background: `linear-gradient(to top, ${C.bg} 60%, transparent)`,
         }}>
-          {venue.allow_cash && (
-            <OrangeButton onClick={() => {}} fullWidth>
-              Pay {formatCurrency(estimatedTotal, venue.currency)}
-              <ChevronRight size={18} />
-            </OrangeButton>
-          )}
+          <OrangeButton onClick={() => handlePay('cash')} fullWidth>
+            Pay {formatCurrency(estimatedTotal, venue.currency)}
+            <ChevronRight size={18} />
+          </OrangeButton>
         </div>
       )}
     </div>
@@ -499,6 +496,52 @@ export function CheckoutView({ table, venue, session, onBack, onDone }: Props) {
 }
 
 // ── Shared small components ───────────────────────────────────
+
+function MethodCard({ selected, iconBg, icon, label, sublabel, badge, onClick, expanded, expandedContent }: {
+  selected: boolean
+  iconBg: string
+  icon: React.ReactNode
+  label: string
+  sublabel: string
+  badge?: React.ReactNode
+  onClick: () => void
+  expanded?: boolean
+  expandedContent?: React.ReactNode
+}) {
+  return (
+    <div style={{
+      background: '#ffffff', borderRadius: 18,
+      border: `1.5px solid ${selected ? '#E8590C' : '#F0E5D8'}`,
+      overflow: 'hidden', boxShadow: '0 2px 0 rgba(234,223,211,0.5)',
+    }}>
+      <button onClick={onClick} style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 14,
+        padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+      }}>
+        <div style={{ width: 44, height: 44, borderRadius: 14, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {icon}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+            {badge}
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#1C1917' }}>{label}</p>
+          </div>
+          <p style={{ margin: 0, fontSize: 12, color: '#78716C' }}>{sublabel}</p>
+        </div>
+        <div style={{
+          width: 20, height: 20, borderRadius: '50%',
+          border: `1.5px solid ${selected ? '#E8590C' : '#D6D3D1'}`,
+          background: selected ? '#E8590C' : 'transparent',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          {selected && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />}
+        </div>
+      </button>
+      {expanded && expandedContent}
+    </div>
+  )
+}
+
 
 function TRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
