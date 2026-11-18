@@ -65,6 +65,7 @@ export function CheckoutView({ table, venue, session, onBack, onDone }: Props) {
   const [mpesaPhone, setMpesaPhone] = useState('')
   const [mpesaPaymentId, setMpesaPaymentId] = useState<string | null>(null)
   const [mpesaPollCount, setMpesaPollCount] = useState(0)
+  const [selectedMethod, setSelectedMethod] = useState<'card' | 'applepay' | 'mpesa' | 'cash' | null>(null)
 
   const [receiptData, setReceiptData] = useState<Record<string, unknown> | null>(null)
 
@@ -110,6 +111,22 @@ export function CheckoutView({ table, venue, session, onBack, onDone }: Props) {
 
   const handleProceedToMethod = () => {
     singleMethod ? handlePay(singleMethod) : setStep('method')
+  }
+
+  // For the method step CTA — routes based on selected method
+  const handleMethodPay = () => {
+    if (!selectedMethod) { toast.error('Please select a payment method.'); return }
+    // All methods go straight to mock success for now (payments not yet wired)
+    setReceiptData({
+      order_number: '#001',
+      subtotal: selectedSubtotal,
+      tax_amount: bill?.tax_amount ?? 0,
+      svc: bill?.service_charge_amount ?? 0,
+      tip_amount: tipAmount,
+      total: estimatedTotal,
+      receipt_number: `TK${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    })
+    setStep('receipt')
   }
 
   const handlePay = async (method: 'mpesa' | 'card' | 'cash') => {
@@ -323,19 +340,19 @@ export function CheckoutView({ table, venue, session, onBack, onDone }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {/* Card — always shown */}
             <MethodCard
-              selected={false}
+              selected={selectedMethod === 'card'}
               iconBg="#EEF2FF"
               icon={<CreditCard size={22} color="#4F46E5" />}
               label="Card"
               sublabel="Visa, Mastercard, Amex"
               badge={<span style={{ fontSize: 11, fontWeight: 700, color: '#4F46E5', background: '#EEF2FF', borderRadius: 6, padding: '2px 7px' }}>CARD</span>}
-              onClick={() => venue.allow_card ? handlePay('card') : toast('Card payments not enabled for this venue.')}
+              onClick={() => setSelectedMethod('card')}
               expanded={false}
             />
 
             {/* Apple Pay / Google Pay — UI only */}
             <MethodCard
-              selected={false}
+              selected={selectedMethod === 'applepay'}
               iconBg="#F5F5F5"
               icon={
                 <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
@@ -346,37 +363,37 @@ export function CheckoutView({ table, venue, session, onBack, onDone }: Props) {
               label="Apple Pay / Google Pay"
               sublabel="Approve on your phone"
               badge={<span style={{ fontSize: 11, fontWeight: 700, color: '#78716C', background: '#F5F5F5', borderRadius: 6, padding: '2px 7px' }}>PAY</span>}
-              onClick={() => toast('Digital wallet payments coming soon.')}
+              onClick={() => setSelectedMethod('applepay')}
               expanded={false}
             />
 
             {/* M-Pesa */}
             <MethodCard
-              selected={false}
+              selected={selectedMethod === 'mpesa'}
               iconBg="#F0FDF4"
               icon={<Smartphone size={22} color="#16A34A" />}
               label="M-Pesa"
               sublabel="Approve on your phone"
               badge={<span style={{ fontSize: 10, fontWeight: 800, color: '#fff', background: '#16A34A', borderRadius: 6, padding: '2px 7px', letterSpacing: '0.5px' }}>M-P</span>}
-              onClick={() => {}}
-              expanded={!!venue.mpesa_shortcode}
-              expandedContent={venue.mpesa_shortcode ? (
+              onClick={() => setSelectedMethod('mpesa')}
+              expanded={selectedMethod === 'mpesa'}
+              expandedContent={
                 <div style={{ padding: '0 16px 14px' }}>
                   <Input placeholder="07XX XXX XXX or 254XXX..." type="tel" value={mpesaPhone} onChange={e => setMpesaPhone(e.target.value)} className="mb-2" />
-                  <OrangeButton onClick={() => handlePay('mpesa')} loading={paying} fullWidth>Pay with M-Pesa</OrangeButton>
+                  <OrangeButton onClick={handleMethodPay} loading={paying} fullWidth>Pay with M-Pesa</OrangeButton>
                 </div>
-              ) : null}
+              }
             />
 
             {/* Cash */}
             <MethodCard
-              selected={false}
+              selected={selectedMethod === 'cash'}
               iconBg="#FFFBEB"
               icon={<Banknote size={22} color="#D97706" />}
               label="Cash or card machine"
               sublabel="A waiter comes to your table"
               badge={<span style={{ fontSize: 10, fontWeight: 800, color: '#D97706', background: '#FFFBEB', borderRadius: 6, padding: '2px 7px', border: '1px solid #FDE68A' }}>CASH</span>}
-              onClick={() => {}}
+              onClick={() => setSelectedMethod('cash')}
               expanded={false}
             />
           </div>
@@ -485,10 +502,16 @@ export function CheckoutView({ table, venue, session, onBack, onDone }: Props) {
           padding: `16px 16px calc(72px + max(16px, env(safe-area-inset-bottom)))`,
           background: `linear-gradient(to top, ${C.bg} 60%, transparent)`,
         }}>
-          <OrangeButton onClick={() => handlePay('cash')} fullWidth>
-            Pay {formatCurrency(estimatedTotal, venue.currency)}
+          <OrangeButton onClick={handleMethodPay} loading={paying} fullWidth>
+            {selectedMethod === 'mpesa' ? `Pay via M-Pesa · ` : `Pay `}
+            {formatCurrency(estimatedTotal, venue.currency)}
             <ChevronRight size={18} />
           </OrangeButton>
+          {!selectedMethod && (
+            <p style={{ textAlign: 'center', fontSize: 12, color: C.muted, marginTop: 6 }}>
+              Select a payment method above
+            </p>
+          )}
         </div>
       )}
     </div>
