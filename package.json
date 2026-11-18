@@ -16,6 +16,7 @@
   "dependencies": {
     "@sentry/react": "8.55.2",
     "@supabase/supabase-js": "^2.43.4",
+    "@vercel/og": "^1.0.3",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "lucide-react": "^0.396.0",
