@@ -10,7 +10,6 @@ import { updateOrderStatus, cancelOrder, getStations, getMyStations, updateLineS
 import { useAuthStore } from '../../stores/authStore'
 import { useTableRealtime } from '../../hooks/useRealtime'
 import { formatTime, cn } from '../../lib/utils'
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { Spinner } from '../../components/ui/Spinner'
 import { supabase } from '../../lib/supabase'
 import type { Order, OrderItem, OrderStatus, KitchenStation } from '../../types/database'
@@ -23,6 +22,7 @@ const BASE_COLUMNS: {
   label: string
   accent: string
   dot: string
+  timerLabel: string   // label shown above the MM:SS timer
   btnClass: string
   btnLabel: string
 }[] = [
@@ -31,14 +31,16 @@ const BASE_COLUMNS: {
     label: 'New',
     accent: 'bg-amber-400',
     dot: 'bg-amber-400',
+    timerLabel: 'WAITING',
     btnClass: 'bg-blue-600 hover:bg-blue-500 text-white',
-    btnLabel: 'Start Preparing',           // #6: unchanged for new→preparing
+    btnLabel: 'Start Preparing',
   },
   {
     id: 'preparing',
     label: 'Preparing',
     accent: 'bg-blue-500',
     dot: 'bg-blue-400 animate-pulse',
+    timerLabel: 'COOKING',
     btnClass: 'bg-emerald-600 hover:bg-emerald-500 text-white',
     btnLabel: 'Mark Ready',
   },
@@ -47,8 +49,9 @@ const BASE_COLUMNS: {
     label: 'Ready',
     accent: 'bg-emerald-500',
     dot: 'bg-emerald-400',
+    timerLabel: 'ON PASS',
     btnClass: 'bg-gray-600 hover:bg-gray-500 text-white',
-    btnLabel: 'Plated / On Pass',          // #6: renamed from "Mark Served"
+    btnLabel: 'Plated / On Pass',
   },
 ]
 
@@ -68,6 +71,7 @@ export default function KitchenDisplay() {
   const [connected, setConnected] = useState(true)
   const [lastSyncAt, setLastSyncAt] = useState(() => new Date())
   const [confirmCancel, setConfirmCancel] = useState<Order | null>(null)
+  const [cancelReason, setCancelReason] = useState<string>('Out of stock')
   const [cancelling, setCancelling] = useState(false)
   const [progressing, setProgressing] = useState<Record<string, boolean>>({})
   const prevNewCount = useRef(0)
@@ -415,22 +419,51 @@ export default function KitchenDisplay() {
       <div className="flex-1 flex overflow-hidden">
         {BASE_COLUMNS.map((col, colIdx) => {
           const colOrds = columnOrders(col.id)
-          // #10: inject ghost cards into the column they were cancelled from
           const ghosts = cancelledGhosts.filter(g => g.order.status === col.id)
+
+          // Avg wait time for column header
+          const avgSecs = colOrds.length > 0
+            ? colOrds.reduce((s, o) => s + Math.floor((Date.now() - new Date(o.placed_at).getTime()) / 1000), 0) / colOrds.length
+            : 0
+          const avgMins = Math.round(avgSecs / 60)
+
+          // Serve-all in Ready column per table
+          const readyByTable: Record<string, number> = {}
+          if (col.id === 'ready') {
+            colOrds.forEach(o => { readyByTable[o.table_id] = (readyByTable[o.table_id] ?? 0) + 1 })
+          }
+          const serveAllTables = Object.entries(readyByTable).filter(([, c]) => c >= 2).map(([id]) => id)
+
           return (
             <div key={col.id}
               className={cn('flex-1 flex flex-col min-w-0',
                 colIdx < BASE_COLUMNS.length - 1 && 'border-r border-gray-800')}>
+
+              {/* Column header */}
               <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-800 bg-gray-900/60 shrink-0">
                 <div className="flex items-center gap-2">
                   <span className={cn('h-2 w-2 rounded-full', col.dot)} />
                   <span className="font-semibold text-sm text-white">{col.label}</span>
+                  {colOrds.length > 0 && avgMins > 0 && (
+                    <span className="text-[10px] text-gray-500">avg wait {avgMins}m</span>
+                  )}
                 </div>
-                {colOrds.length > 0 && (
-                  <span className="text-xs font-bold bg-gray-800 text-gray-300 rounded-full px-2 py-0.5 border border-gray-700">
-                    {colOrds.length}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {/* Serve all button in Ready column header */}
+                  {col.id === 'ready' && serveAllTables.length > 0 && serveAllTables.map(tid => (
+                    <button key={tid}
+                      onClick={() => handleServeTable(tid)}
+                      className="text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded px-2 py-0.5 transition-colors"
+                    >
+                      Serve T{tableNumbers[tid]}
+                    </button>
+                  ))}
+                  {colOrds.length > 0 && (
+                    <span className="text-xs font-bold bg-gray-800 text-gray-300 rounded-full px-2 py-0.5 border border-gray-700">
+                      {colOrds.length}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-2.5 flex flex-col gap-2.5">
@@ -439,8 +472,6 @@ export default function KitchenDisplay() {
                     <p className="text-xs text-gray-700 text-center py-8">No orders</p>
                   </div>
                 )}
-
-                {/* Live order cards */}
                 {colOrds.map(order => (
                   <OrderCard
                     key={order.id}
@@ -453,13 +484,11 @@ export default function KitchenDisplay() {
                     focused={focusedOrderId === order.id}
                     onFocus={() => setFocusedOrderId(order.id)}
                     onProgress={() => handleProgress(order)}
-                    onCancel={() => setConfirmCancel(order)}
+                    onCancel={() => { setConfirmCancel(order); setCancelReason('Out of stock') }}
                     staffId={staff?.id ?? ''}
                     venueId={staff?.venue_id ?? ''}
                   />
                 ))}
-
-                {/* #10: ghost cards for recently cancelled orders */}
                 {ghosts.map(g => (
                   <CancelledGhostCard
                     key={g.order.id}
@@ -474,16 +503,64 @@ export default function KitchenDisplay() {
         })}
       </div>
 
-      {/* Cancel confirm dialog */}
-      <ConfirmDialog
-        open={!!confirmCancel}
-        onClose={() => setConfirmCancel(null)}
-        onConfirm={handleCancel}
-        title="Cancel order?"
-        message={`Cancel ${confirmCancel?.order_number}? This cannot be undone.`}
-        confirmLabel="Cancel Order"
-        loading={cancelling}
-      />
+      {/* ── Cancel modal with reason chips ───────────────────── */}
+      {confirmCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="flex items-center justify-center mb-4">
+              <div className="h-10 w-10 rounded-full bg-red-900/60 border border-red-700 flex items-center justify-center">
+                <X size={20} className="text-red-400" />
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-white text-center mb-1">
+              Cancel ticket {confirmCancel.order_number}?
+            </h3>
+            <p className="text-xs text-gray-400 text-center mb-5">
+              T{tableNumbers[confirmCancel.table_id]} ·{' '}
+              {(confirmCancel.items ?? []).slice(0, 2).map(i => `${i.quantity}× ${i.item_name}`).join(', ')}
+              {(confirmCancel.items ?? []).length > 2 ? '…' : ''}.
+              <br />The waiter will be told straight away.
+            </p>
+
+            {/* Reason chips */}
+            <div className="flex flex-wrap gap-2 justify-center mb-6">
+              {['Out of stock', 'Wrong order', 'Guest changed mind', 'Other'].map(reason => (
+                <button
+                  key={reason}
+                  onClick={() => setCancelReason(reason)}
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors',
+                    cancelReason === reason
+                      ? 'bg-blue-600 border-blue-500 text-white'
+                      : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-500'
+                  )}
+                >
+                  {reason}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmCancel(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-700 text-gray-300 text-sm font-semibold hover:bg-gray-800 transition-colors"
+              >
+                Keep ticket <kbd className="ml-1 text-[10px] text-gray-500 font-mono">Esc</kbd>
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {cancelling
+                  ? <span className="h-4 w-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  : <>Cancel ticket <kbd className="ml-1 text-[10px] text-red-300 font-mono">C</kbd></>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* #1: allergy acknowledgement modal */}
       {allergyPending && (
@@ -665,13 +742,13 @@ function OrderCard({
       {/* Accent bar */}
       <div className={cn('h-0.5 w-full', col.accent)} />
 
-      {/* Card header */}
-      <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
-        <div className="flex items-center gap-2 min-w-0">
+      {/* Card header — table + ticket left, large timer right */}
+      <div className="flex items-start justify-between px-3 pt-2.5 pb-1.5 gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
           <span className="font-black text-white text-base font-mono tracking-wide shrink-0">
             T{tableNumber ?? '?'}
           </span>
-          <span className="text-xs text-gray-400 bg-gray-800 rounded px-1.5 py-0.5 font-mono truncate">
+          <span className="text-xs text-gray-500 font-mono truncate">
             Ticket {order.order_number}
           </span>
           {isWaiterOrder && (
@@ -680,85 +757,92 @@ function OrderCard({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
-          {/* Explicitly label the duration so it is not confused with clock time. */}
-          <span className={cn(
-            'flex items-center gap-0.5 text-xs font-mono font-bold rounded px-1.5 py-0.5',
-            isUrgent
-              ? 'text-red-400 bg-red-950/60 border border-red-800/50'
-              : 'text-gray-500 bg-gray-800'
+        {/* Large prominent timer matching reference design */}
+        <div className="shrink-0 text-right">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-gray-500 leading-none mb-0.5">
+            {col.timerLabel}
+          </p>
+          <p className={cn(
+            'text-xl font-black font-mono leading-none tabular-nums',
+            isUrgent ? 'text-red-400' :
+            elapsedMins >= 8 ? 'text-amber-400' :
+            col.id === 'ready' ? 'text-emerald-400' :
+            col.id === 'preparing' ? 'text-blue-300' :
+            'text-gray-200'
           )}>
-            <Clock size={10} />
-            {isUrgent && <span className="text-[9px] uppercase mr-0.5">Overdue</span>}
-            <span>Elapsed {elapsedMins}:{String(elapsedRemSec).padStart(2, '0')}</span>
-          </span>
-          {/* #4: countdown to urgent — only show when not yet urgent and < 3 min away */}
-          {!isUrgent && urgencySecondsLeft > 0 && urgencySecondsLeft <= 180 && (
-            <span className="text-[10px] text-amber-500 font-mono">
-              {Math.ceil(urgencySecondsLeft / 60)}m to <Zap size={11} className="inline" />
-            </span>
-          )}
-          <span className="text-[10px] text-gray-600">{formatTime(order.placed_at)}</span>
+            {isUrgent ? (
+              <span className="text-sm font-black text-red-400 uppercase tracking-wide">OVERDUE</span>
+            ) : (
+              `${String(elapsedMins).padStart(2, '0')}:${String(elapsedRemSec).padStart(2, '0')}`
+            )}
+          </p>
         </div>
       </div>
 
-      {/* Items — #5: checkboxes when station-filtered + preparing */}
-      <div className="px-3 pb-2 space-y-1">
+      {/* Items */}
+      <div className="px-3 pb-2 space-y-1.5">
         {visibleItems.map(item => (
-          <div key={item.id} className="flex items-start gap-2">
-            {/* #5: per-line checkbox */}
-            {showLineCheckboxes && (
-              <button
-                onClick={e => { e.stopPropagation(); handleLineToggle(item) }}
-                className="mt-0.5 shrink-0 text-gray-500 hover:text-emerald-400 transition-colors"
-                title="Mark item done"
-              >
-                {lineDone.has(item.id)
-                  ? <CheckSquare size={16} className="text-emerald-400" />
-                  : <Square size={16} />
-                }
-              </button>
-            )}
-            <span className="text-xs font-bold text-brand-400 shrink-0 w-5 text-right mt-0.5">
-              {item.quantity}×
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className={cn('text-sm text-white leading-snug', lineDone.has(item.id) && 'line-through opacity-50')}>
+          <div key={item.id} className="flex flex-col gap-0.5">
+            <div className="flex items-start gap-2">
+              {/* Per-line checkbox */}
+              {showLineCheckboxes && (
+                <button
+                  onClick={e => { e.stopPropagation(); handleLineToggle(item) }}
+                  className="mt-0.5 shrink-0 text-gray-500 hover:text-emerald-400 transition-colors"
+                  title="Mark item done"
+                >
+                  {lineDone.has(item.id)
+                    ? <CheckSquare size={16} className="text-emerald-400" />
+                    : <Square size={16} />
+                  }
+                </button>
+              )}
+              {/* Quantity — orange pill like reference design */}
+              <span className="shrink-0 mt-0.5 min-w-[22px] text-center text-[11px] font-black text-white bg-[#e05c27] rounded-md px-1 py-0.5 leading-none">
+                {item.quantity}×
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className={cn('text-sm text-white leading-snug', lineDone.has(item.id) && 'line-through opacity-40')}>
                   {item.item_name}
+                  {item.allergy_flag && (
+                    <AlertTriangle size={12} className="inline ml-1 text-amber-400" />
+                  )}
                 </p>
-                {item.allergy_flag && (
-                  <span title={item.allergy_note ?? 'Allergy flag'}>
-                    <AlertTriangle size={12} className="text-amber-400 shrink-0" />
-                  </span>
+                {item.options && Object.keys(item.options).length > 0 && (
+                  <p className="text-[11px] text-gray-500 leading-tight">
+                    {Object.values(item.options as Record<string, string>).join(' · ')}
+                  </p>
                 )}
               </div>
-              {item.options && Object.keys(item.options).length > 0 && (
-                <p className="text-[11px] text-gray-500 leading-tight">
-                  {Object.values(item.options as Record<string, string>).join(' · ')}
-                </p>
-              )}
-              {item.notes && (
-                <p className="text-[11px] text-amber-400 leading-tight mt-0.5"><AlertTriangle size={12} className="inline mr-1" />{item.notes}</p>
-              )}
-              {item.allergy_flag && item.allergy_note && (
-                <p className="text-[11px] text-amber-300 leading-tight mt-0.5 font-medium">
-                  <AlertTriangle size={12} className="inline mr-1" />{item.allergy_note}
-                </p>
-              )}
             </div>
+            {/* Notes as amber pill tag — like reference design */}
+            {item.notes && (
+              <div className="ml-6 inline-flex">
+                <span className="inline-flex items-center gap-1 bg-amber-900/40 border border-amber-700/50 rounded-md px-2 py-0.5 text-[11px] text-amber-300 font-medium">
+                  <AlertTriangle size={9} className="shrink-0" />
+                  {item.notes}
+                </span>
+              </div>
+            )}
+            {item.allergy_flag && item.allergy_note && (
+              <div className="ml-6 inline-flex">
+                <span className="inline-flex items-center gap-1 bg-red-900/40 border border-red-700/50 rounded-md px-2 py-0.5 text-[11px] text-red-300 font-semibold">
+                  <AlertTriangle size={9} className="shrink-0" />
+                  Allergy · {item.allergy_note}
+                </span>
+              </div>
+            )}
           </div>
         ))}
 
         {order.notes && (
-          <div className="mt-1.5 rounded-lg bg-amber-950/50 border border-amber-800/40 px-2 py-1.5">
-            <p className="text-[11px] text-amber-300 leading-snug"><FileText size={12} className="inline mr-1" />{order.notes}</p>
+          <div className="mt-1 rounded-lg bg-amber-950/50 border border-amber-800/40 px-2 py-1.5">
+            <p className="text-[11px] text-amber-300 leading-snug"><FileText size={11} className="inline mr-1" />{order.notes}</p>
           </div>
         )}
 
-        {/* #5: "all items done" hint */}
         {showLineCheckboxes && allLinesDone && (
-          <p className="text-[11px] text-emerald-400 mt-1"><CheckSquare size={12} className="inline mr-1" />All items checked — tap Mark Ready when plated</p>
+          <p className="text-[11px] text-emerald-400 mt-1"><CheckSquare size={12} className="inline mr-1" />All items done — tap Mark Ready when plated</p>
         )}
       </div>
 

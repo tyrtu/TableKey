@@ -648,7 +648,7 @@ function TableCard({
     : table.status === 'requested' ? 'Request pending'
     : isReady ? 'Ready to serve'
     : isPreparing ? 'In kitchen'
-    : table.status === 'active' ? `Active · ${elapsedLabel(table.active_session!.opened_at)}`
+    : table.status === 'active' ? `Active · ${table.active_session ? elapsedLabel(table.active_session.opened_at) : ''}`
     : table.status === 'awaiting_payment' ? 'Paying'
     : 'Available'
 
@@ -715,7 +715,7 @@ function TableCard({
             <p className="text-[10px] text-gray-400 leading-tight">
               {guestInfo}
               {table.active_session && !['idle','closed'].includes(table.status) && (
-                <> · {table.active_session && `${elapsedLabel(table.active_session.opened_at)}`}</>
+                <> · {elapsedLabel(table.active_session.opened_at)}</>
               )}
             </p>
           </div>
