@@ -333,6 +333,8 @@ export interface BillItem {
   paid_by: string | null
   void_reason: VoidReason | null
   comp_reason: CompReason | null
+  allergy_flag?: boolean
+  allergy_note?: string | null
 }
 
 export interface ComputedBill {

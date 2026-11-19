@@ -101,9 +101,14 @@ export function TableDetailModal({ table, onClose, onCloseSession, onRegenCode, 
 
   return (
     <Modal open onClose={onClose} title={`Table ${table.table_number}${table.label ? ` — ${table.label}` : ''}`} size="md">
+      {/* Header row — status + elapsed */}
       <div className="flex items-center gap-2 mb-4">
         <TableStatusBadge status={table.status} />
-        {session && <span className="text-xs text-gray-500">Opened {elapsedLabel(session.opened_at)}</span>}
+        {session && (
+          <span className="text-xs text-gray-500">
+            Opened {elapsedLabel(session.opened_at)}
+          </span>
+        )}
       </div>
 
       {!session ? (
@@ -112,23 +117,52 @@ export function TableDetailModal({ table, onClose, onCloseSession, onRegenCode, 
         </div>
       ) : (
         <>
-          <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-blue-900">Waiter presence</p>
-              <p className="text-xs text-blue-700">
-                {presenceConfirmedUntil && new Date(presenceConfirmedUntil) > new Date()
-                  ? `Confirmed until ${formatTime(presenceConfirmedUntil)}`
-                  : 'Not confirmed for this session'}
-              </p>
-            </div>
-            <Button
-              size="sm"
-              onClick={handleConfirmPresence}
-              loading={confirmingPresence}
-            >
-              Confirm presence
-            </Button>
-          </div>
+          {/* ── Presence banner ─────────────────────────────── */}
+          {(() => {
+            const isConfirmed = !!presenceConfirmedUntil && new Date(presenceConfirmedUntil) > new Date()
+            return (
+              <div className={cn(
+                'flex items-center justify-between gap-3 rounded-2xl px-4 py-3 mb-4 border',
+                isConfirmed
+                  ? 'bg-emerald-50 border-emerald-200'
+                  : 'bg-amber-50 border-amber-200'
+              )}>
+                <div className="min-w-0 flex-1">
+                  <p className={cn('text-xs font-bold', isConfirmed ? 'text-emerald-800' : 'text-amber-900')}>
+                    {isConfirmed ? 'Presence confirmed' : 'Waiter presence'}
+                  </p>
+                  <p className={cn('text-xs mt-0.5', isConfirmed ? 'text-emerald-700' : 'text-amber-700')}>
+                    {isConfirmed
+                      ? `Valid until ${formatTime(presenceConfirmedUntil!)}`
+                      : 'Not confirmed for this session'}
+                  </p>
+                </div>
+                {!isConfirmed && (
+                  <button
+                    onClick={handleConfirmPresence}
+                    disabled={confirmingPresence}
+                    className="shrink-0 flex items-center gap-1.5 bg-[#E8590C] hover:bg-[#c94f1f] text-white text-xs font-bold rounded-xl px-3 py-2 transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {confirmingPresence
+                      ? <span className="h-3 w-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      : <CheckCircle2 size={13} />
+                    }
+                    Confirm presence
+                  </button>
+                )}
+                {isConfirmed && (
+                  <button
+                    onClick={handleConfirmPresence}
+                    disabled={confirmingPresence}
+                    className="shrink-0 text-xs font-semibold text-emerald-700 hover:text-emerald-900 underline"
+                  >
+                    Extend
+                  </button>
+                )}
+              </div>
+            )
+          })()}
+
           <Tabs tabs={TABS} active={tab} onChange={setTab} className="mb-4 -mx-5 px-5" />
 
           {/* ── Order tab ────────────────────────────────── */}
@@ -143,29 +177,37 @@ export function TableDetailModal({ table, onClose, onCloseSession, onRegenCode, 
 
           {/* ── Code tab ─────────────────────────────────── */}
           <TabPanel active={tab} id="code">
-            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 mb-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Session Code</p>
-                  {session.code_locked ? (
-                    <p className="text-red-600 font-semibold"><Lock size={14} className="inline mr-1" />Locked — too many wrong attempts</p>
-                  ) : session.current_code ? (
-                    <p className="text-3xl font-bold tracking-[0.3em] text-gray-900 font-mono">
-                      {session.current_code.split('').join(' ')}
-                    </p>
-                  ) : (
-                    <p className="text-gray-400 text-sm">Code cleared</p>
-                  )}
-                  {session.code_expires_at && !session.code_locked && (
-                    <p className="text-xs text-gray-400 mt-1">Expires {formatTime(session.code_expires_at)}</p>
-                  )}
-                </div>
-                <Button variant="secondary" size="sm" onClick={handleRegenCode}>
-                  <RefreshCw size={14} /> New Code
-                </Button>
+            <div className="rounded-2xl bg-gray-950 px-5 py-5 mb-4">
+              <div className="flex items-start justify-between mb-3">
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">Session Code</p>
+                <button
+                  onClick={handleRegenCode}
+                  className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl px-3 py-1.5 transition-colors"
+                >
+                  <RefreshCw size={12} />
+                  New Code
+                </button>
               </div>
+              {session.code_locked ? (
+                <p className="text-red-400 font-semibold flex items-center gap-2">
+                  <Lock size={14} /> Locked — too many wrong attempts
+                </p>
+              ) : session.current_code ? (
+                <div className="flex items-center gap-3 mt-1">
+                  {session.current_code.split('').map((digit, i) => (
+                    <div key={i} className="flex items-center justify-center w-12 h-14 rounded-xl bg-gray-800 text-white text-4xl font-black font-mono">
+                      {digit}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">Code cleared</p>
+              )}
+              {session.code_expires_at && !session.code_locked && (
+                <p className="text-xs text-gray-500 mt-2">Expires {formatTime(session.code_expires_at)}</p>
+              )}
             </div>
-            <p className="text-xs text-gray-400 text-center">
+            <p className="text-xs text-gray-400 text-center leading-relaxed">
               Share this code with the requesting device so tablemates can join.
             </p>
           </TabPanel>
@@ -181,6 +223,7 @@ export function TableDetailModal({ table, onClose, onCloseSession, onRegenCode, 
               onClose={onClose}
             />
           </TabPanel>
+
           {/* ── Devices tab ──────────────────────────────── */}
           <TabPanel active={tab} id="devices">
             {loadingDevices ? (
@@ -212,17 +255,17 @@ export function TableDetailModal({ table, onClose, onCloseSession, onRegenCode, 
             )}
           </TabPanel>
 
+          {/* ── End party ────────────────────────────────── */}
           <div className="mt-5 border-t border-gray-100 pt-4">
-            <Button
-              variant="secondary"
-              fullWidth
+            <button
               onClick={onCloseSession}
+              className="w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-gray-200 bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-900 text-sm font-semibold py-3 transition-colors"
             >
-              <CheckCircle2 size={16} />
+              <CheckCircle2 size={16} className="text-gray-400" />
               End current party and reset table
-            </Button>
-            <p className="mt-2 text-center text-xs text-gray-400">
-              Use after payment is settled. This ends access for all current devices so a new party can start cleanly.
+            </button>
+            <p className="mt-2 text-center text-xs text-gray-400 leading-relaxed">
+              Use after payment is settled. Ends access for all current devices so a new party can start cleanly.
             </p>
           </div>
         </>

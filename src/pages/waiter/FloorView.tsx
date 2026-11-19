@@ -44,6 +44,10 @@ export function FloorView({ venueId, staffId, activeFilter, setActiveFilter, pen
   const [currency, setCurrency] = useState('USD')
 
   const [opening, setOpening] = useState<string | null>(null)
+  const [openTableModal, setOpenTableModal] = useState<TableWithSession | null>(null)
+  const [guestCount, setGuestCount] = useState(2)
+  const [openTableNotes, setOpenTableNotes] = useState('')
+  const [selectedOccasions, setSelectedOccasions] = useState<Set<string>>(new Set())
   const [quickCash, setQuickCash] = useState<{ table: TableWithSession; bill: ComputedBill } | null>(null)
   const [cashReceived, setCashReceived] = useState('')
   const [cashTip, setCashTip] = useState('')
@@ -106,14 +110,27 @@ export function FloorView({ venueId, staffId, activeFilter, setActiveFilter, pen
     } catch { toast.error('Failed to regenerate code.') }
   }
 
-  const handleOpenTable = async (table: TableWithSession) => {
-    if (!staffId || !venueId) return
+  const handleOpenTable = (table: TableWithSession) => {
+    setGuestCount(table.capacity ?? 2)
+    setOpenTableNotes('')
+    setSelectedOccasions(new Set())
+    setOpenTableModal(table)
+  }
+
+  const handleConfirmOpenTable = async () => {
+    const table = openTableModal
+    if (!table || !staffId || !venueId) return
     setOpening(table.id)
     try {
       const { data: venue } = await getSupabase().from('venues').select('code_length').eq('id', venueId).single()
+      const notes = [
+        openTableNotes.trim(),
+        selectedOccasions.size > 0 ? Array.from(selectedOccasions).join(', ') : '',
+      ].filter(Boolean).join(' · ')
       const result = await openTableAsWaiter(table.id, staffId, venue?.code_length ?? 4)
       if (!result.success) { toast.error(result.message ?? 'Failed to open table.'); return }
       toast.success(`Table ${table.table_number} opened. Code: ${result.code?.split('').join(' ')}`, { duration: 10000 })
+      setOpenTableModal(null)
       reload()
       setTimeout(() => {
         const updated = tables.find(t => t.id === table.id)
@@ -398,6 +415,100 @@ export function FloorView({ venueId, staffId, activeFilter, setActiveFilter, pen
         loading={closing}
       />
 
+      {/* ── Open Table modal — guest count + occasion tags ── */}
+      <Modal
+        open={!!openTableModal}
+        onClose={() => setOpenTableModal(null)}
+        title={openTableModal ? `Open Table ${openTableModal.table_number}` : ''}
+        size="sm"
+      >
+        {openTableModal && (
+          <div className="space-y-5">
+            {/* Table info */}
+            <p className="text-sm text-gray-500">
+              {openTableModal.capacity ? `${openTableModal.capacity} seats` : 'Available'}
+            </p>
+
+            {/* Guest count stepper */}
+            <div>
+              <p className="text-sm font-semibold text-gray-900 mb-3">Guests at the table</p>
+              <div className="flex items-center justify-between bg-gray-50 rounded-2xl px-4 py-3 border border-gray-200">
+                <span className="text-sm text-gray-600">Guests at the table</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setGuestCount(c => Math.max(1, c - 1))}
+                    className="h-8 w-8 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-700 font-bold text-lg hover:bg-gray-100 transition-colors"
+                  >
+                    −
+                  </button>
+                  <span className="text-lg font-bold text-gray-900 w-5 text-center">{guestCount}</span>
+                  <button
+                    onClick={() => setGuestCount(c => c + 1)}
+                    className="h-8 w-8 rounded-full bg-[#e05c27] flex items-center justify-center text-white font-bold text-lg hover:bg-[#c94f1f] transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <p className="text-sm font-semibold text-gray-900 mb-2">Notes for the kitchen (optional)</p>
+              <input
+                value={openTableNotes}
+                onChange={e => setOpenTableNotes(e.target.value)}
+                placeholder="Allergies, celebrations…"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e05c27]/30 bg-gray-50"
+              />
+            </div>
+
+            {/* Occasion quick-tags */}
+            <div>
+              <div className="flex flex-wrap gap-2">
+                {['Allergy', 'Birthday', 'High chair', 'Anniversary', 'Business', 'VIP'].map(tag => {
+                  const active = selectedOccasions.has(tag)
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => setSelectedOccasions(prev => {
+                        const n = new Set(prev)
+                        active ? n.delete(tag) : n.add(tag)
+                        return n
+                      })}
+                      className={cn(
+                        'rounded-full px-3 py-1 text-xs font-semibold border transition-colors',
+                        active
+                          ? 'bg-[#e05c27] border-[#e05c27] text-white'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                      )}
+                    >
+                      {tag}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* CTA */}
+            <button
+              onClick={handleConfirmOpenTable}
+              disabled={!!opening}
+              className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl bg-[#e05c27] hover:bg-[#c94f1f] text-white text-sm font-bold transition-colors disabled:opacity-50"
+            >
+              {opening
+                ? <span className="h-4 w-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                : null
+              }
+              Open session →
+            </button>
+            <button onClick={() => setOpenTableModal(null)} className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors py-1">
+              Cancel
+            </button>
+          </div>
+        )}
+      </Modal>
+
       {/* Quick cash modal */}
       <Modal
         open={!!quickCash}
@@ -555,8 +666,8 @@ function TableCard({
       action: onQuickCash,
     }
     if (table.status === 'requested') return {
-      label: 'View request',
-      style: 'bg-gray-900 hover:bg-gray-800 text-white',
+      label: 'Verify & open',
+      style: 'bg-[#e05c27] hover:bg-[#c94f1f] text-white',
       action: onQuickCode,
     }
     if (table.status === 'active' || table.status === 'awaiting_payment' || isReady || isPreparing) return {

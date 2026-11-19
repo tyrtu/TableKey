@@ -301,6 +301,14 @@ export function BillView({ sessionId, tableNumber, venueId, staffId, currency, o
                     </p>
                   </div>
                   {item.notes && <p className="text-[11px] text-gray-400 italic mt-0.5">"{item.notes}"</p>}
+                  {item.allergy_flag && (
+                    <div className="flex items-center gap-1 mt-1 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                      <AlertTriangle size={10} className="text-amber-600 shrink-0" />
+                      <p className="text-[10px] text-amber-800 font-semibold">
+                        {item.allergy_note ? `Allergy: ${item.allergy_note}` : 'Allergy flag'}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Price */}
